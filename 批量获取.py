@@ -12,7 +12,7 @@ headers = {
 # 打开 CSV 文件准备写入
 with open('data.csv', mode='w', newline='', encoding='utf-8') as csvfile:
     fieldnames = ['标题', '评分', '评分人数', '导演', '主演', '类型', '上映日期', '片长', '剧情简介', '海报图片',
-                  '制片国家/地区', '语言', '又名', 'IMDb', '豆瓣url', '集数']
+                  '制片国家/地区', '语言', '又名', 'IMDb', '豆瓣url', '集数', '单集片长']
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
     writer.writeheader()
 
@@ -61,15 +61,17 @@ with open('data.csv', mode='w', newline='', encoding='utf-8') as csvfile:
         release_date_tag = soup.find('span', property='v:initialReleaseDate')
         release_date = release_date_tag.text.strip() if release_date_tag else 'No release date found'
 
-        # 提取片长或单集片长
+        # 提取片长和单集片长
+        runtime = 'No runtime found'
         runtime_tag = soup.find('span', property='v:runtime')
-        single_runtime_tag = soup.find('span', string='单集片长:')
-        runtime = (
-            runtime_tag.text.strip() if runtime_tag else
-            single_runtime_tag.find_next_sibling('span').text.strip() if single_runtime_tag and single_runtime_tag.find_next_sibling('span') else
-            'No runtime found'
-        )
-        
+        single_runtime_tag = soup.find('span', text='单集片长:')
+        if runtime_tag:
+            runtime = runtime_tag.text.strip()
+        elif single_runtime_tag:
+            runtime = single_runtime_tag.next_sibling.strip()
+            if '分钟' not in runtime:
+                runtime += ' 分钟'
+
         # 提取剧情简介
         summary_tag = soup.find('span', property='v:summary')
         summary = summary_tag.text.strip() if summary_tag else 'No summary found'
@@ -79,24 +81,39 @@ with open('data.csv', mode='w', newline='', encoding='utf-8') as csvfile:
         poster_url = poster_img_tag['src'] if poster_img_tag else 'No image found'
 
         # 提取制片国家/地区
+        countries = 'Unknown'
         countries_tag = soup.find('span', string='制片国家/地区:')
-        countries = countries_tag.find_next_sibling('span').text.strip() if countries_tag and countries_tag.find_next_sibling('span') else 'Unknown'
+        if countries_tag:
+            countries_value_tag = countries_tag.find_next('span')  # 可能是下一个兄弟元素
+            if countries_value_tag:
+                countries = countries_value_tag.text.strip()
 
         # 提取语言
+        language = 'Unknown'
         language_tag = soup.find('span', string='语言:')
-        language = language_tag.find_next_sibling('span').text.strip() if language_tag and language_tag.find_next_sibling('span') else 'Unknown'
+        if language_tag:
+            language_value_tag = language_tag.find_next('span')  # 可能是下一个兄弟元素
+            if language_value_tag:
+                language = language_value_tag.text.strip()
 
         # 提取又名
+        alias = 'Unknown'
         alias_tag = soup.find('span', string='又名:')
-        alias_value = alias_tag.find_next_sibling('span').text.strip() if alias_tag and alias_tag.find_next_sibling('span') else 'Unknown'
+        if alias_tag:
+            alias = alias_tag.next_sibling.strip() if alias_tag.next_sibling else 'Unknown'
 
-        # 提取 IMDb 编号
+        # 提取IMDb编号
+        imdb_value = 'Unknown'
         imdb_tag = soup.find('span', string='IMDb:')
-        imdb_value = imdb_tag.find_next_sibling('span').text.strip() if imdb_tag and imdb_tag.find_next_sibling('span') else 'Unknown'
+        if imdb_tag:
+            imdb_value_tag = imdb_tag.find_next_sibling('a')  # IMDb链接通常是一个链接
+            imdb_value = imdb_value_tag.text.strip() if imdb_value_tag else 'Unknown'
 
         # 提取集数
+        episodes_value = 'Unknown'
         episodes_tag = soup.find('span', string='集数:')
-        episodes_value = episodes_tag.find_next_sibling('span').text.strip() if episodes_tag and episodes_tag.find_next_sibling('span') else 'Unknown'
+        if episodes_tag:
+            episodes_value = episodes_tag.next_sibling.strip() if episodes_tag.next_sibling else 'Unknown'
 
         # 写入 CSV 文件
         writer.writerow({
@@ -112,10 +129,11 @@ with open('data.csv', mode='w', newline='', encoding='utf-8') as csvfile:
             '海报图片': poster_url,
             '制片国家/地区': countries,
             '语言': language,
-            '又名': alias_value,
+            '又名': alias,
             'IMDb': imdb_value,
             '豆瓣url': url,
-            '集数': episodes_value
+            '集数': episodes_value,
+            '单集片长': runtime  # 使用片长字段代替
         })
 
         print(f"电影《{title}》信息已成功写入到 data.csv 文件中。")
