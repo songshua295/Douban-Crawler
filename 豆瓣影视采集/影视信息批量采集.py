@@ -1,3 +1,4 @@
+# 此脚本数据url来源为 url.txt 中
 import requests
 from bs4 import BeautifulSoup
 import csv

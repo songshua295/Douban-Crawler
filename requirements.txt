@@ -1,0 +1,7 @@
+beautifulsoup4
+requests
+gooey
+pandas
+concurrent
+BeautifulSoup
+pandas

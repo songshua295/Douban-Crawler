@@ -1,121 +1,87 @@
-import requests
-from bs4 import BeautifulSoup
-import csv
 
-# 定义请求头，模拟浏览器请求
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-    'Referer': 'https://www.douban.com/',
-    'Connection': 'keep-alive'
-}
+# python爬取豆瓣影视及读书
 
-# 打开 CSV 文件准备写入
-with open('data.csv', mode='w', newline='', encoding='utf-8') as csvfile:
-    fieldnames = ['标题', '评分', '评分人数', '导演', '主演', '类型', '上映日期', '片长', '剧情简介', '海报图片',
-                  '制片国家/地区', '语言', '又名', 'IMDb', '豆瓣url', '集数', '单集片长']
-    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    writer.writeheader()
+# 概述
 
-    # 从 url.txt 文件中读取 URL 列表
-    with open('url.txt', 'r', encoding='utf-8') as file:
-        urls = file.readlines()
+## 场景
 
-    # 遍历每个 URL
-    for url in urls:
-        url = url.strip()  # 去除首尾空白字符
-        if not url:
-            continue  # 跳过空行
+> 使用notion记录追剧、看书记录，记录更详细的信息，后续不至于想不起看的啥。
+>
+> 生成后的直接导入到notion等应用中进行管理即可。
 
-        # 发送请求获取网页内容
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            print(f"Failed to retrieve the web page at {url}. Status code: {response.status_code}")
-            continue
+由于书籍以及电影，很多都有重名的，所以还是不得不通过浏览器古老式的方式去找到该页面的url，然后在使用脚本进行信息抓取。
 
-        # 使用 BeautifulSoup 解析 HTML
-        soup = BeautifulSoup(response.text, 'html.parser')
+## 效果展示
 
-        # 提取电影标题
-        title_tag = soup.find('span', attrs={'property': 'v:itemreviewed'})
-        title = title_tag.text.strip() if title_tag else 'No title found'
+[阅读书单 模板 | Show All (notion.site)](https://songshua.notion.site/0f2c41c4a52f41e3a68e670fae62a296?v=4f436f06816a43d5be073411aa77f4c0)
 
-        # 提取评分
-        rating_tag = soup.find('strong', class_='ll rating_num')
-        rating_value = rating_tag.text.strip() if rating_tag else 'No rating found'
+[追剧数据 模板 | 豆瓣高分 (notion.site)](https://songshua.notion.site/0c41663e10ff4a5da604753fa16453f4?v=510d034c4fe64feaa85472a13b5735fc)
 
-        # 提取评分人数
-        rating_count_tag = soup.find('a', class_='rating_people')
-        rating_count = rating_count_tag.find('span').text.strip() if rating_count_tag else 'No rating count found'
+截图：
 
-        # 提取导演
-        director_tag = soup.find('a', rel='v:directedBy')
-        director = director_tag.text.strip() if director_tag else 'No director found'
+​![pika-1719369808271-1x](assets/pika-1719369808271-1x-20240626104337-mseay3c.png)​
 
-        # 提取主演
-        casts = [cast.text.strip() for cast in soup.find_all('a', rel='v:starring')] if soup.find_all('a', rel='v:starring') else 'No casts found'
+​![pika-1719369869513-1x](assets/pika-1719369869513-1x-20240626104443-19ukxkg.png)​
 
-        # 提取类型
-        genres = [genre.text.strip() for genre in soup.find_all('span', property='v:genre')] if soup.find_all('span', property='v:genre') else 'No genres found'
+​​
 
-        # 提取上映日期
-        release_date_tag = soup.find('span', property='v:initialReleaseDate')
-        release_date = release_date_tag.text.strip() if release_date_tag else 'No release date found'
+# 使用方法
 
-        # 提取片长
-        runtime_tag = soup.find('span', property='v:runtime')
-        runtime = runtime_tag.text.strip() if runtime_tag else 'No runtime found'
+豆瓣电影查询：	[豆瓣电影 (douban.com)](https://movie.douban.com/)
 
-        # 提取剧情简介
-        summary_tag = soup.find('span', property='v:summary')
-        summary = summary_tag.text.strip() if summary_tag else 'No summary found'
+豆瓣读书查询页面：[豆瓣读书 (douban.com)](https://book.douban.com/)
 
-        # 提取海报图片 URL
-        poster_img_tag = soup.find('img', attrs={'rel': 'v:image'})
-        poster_url = poster_img_tag['src'] if poster_img_tag else 'No image found'
+‍
 
-        # 提取制片国家/地区
-        countries_tag = soup.find('span', string='制片国家/地区:')
-        countries = countries_tag.find_next_sibling('span').text.strip() if countries_tag else 'Unknown'
+1. 在以上页面中的搜索框中搜索对应的书籍或电影名称，然后复制该电影或者书籍的页面url。url格式如下：
 
-        # 提取语言
-        language_tag = soup.find('span', string='语言:')
-        language = language_tag.find_next_sibling('span').text.strip() if language_tag else 'Unknown'
+    ```json
+    电影url格式：
+    https://movie.douban.com/subject/2131940/
+    # 豆瓣读书url格式
+    https://book.douban.com/subject/3099804/
+    ```
 
-        # 提取又名
-        alias_tag = soup.find('span', string='又名:')
-        alias_value = alias_tag.find_next_sibling('span').text.strip() if alias_tag and alias_tag.find_next_sibling('span') else 'Unknown'
+    ​![image](assets/image-20240626104923-inhiurq.png "复制页面url")​
 
-        # 提取IMDb编号
-        imdb_tag = soup.find('span', string='IMDb:')
-        imdb_value = imdb_tag.find_next_sibling('span').text.strip() if imdb_tag and imdb_tag.find_next_sibling('span') else 'Unknown'
+2. 将url放到对应文件夹中的url.txt中，然后运行对应的脚本即可生成csv文件
+3. 将其导入到notion模板中即可。
 
-        # 提取集数
-        episodes_tag = soup.find('span', string='集数:')
-        episodes_value = episodes_tag.find_next_sibling('span').text.strip() if episodes_tag and episodes_tag.find_next_sibling('span') else 'Unknown'
+    1. notion电影模板：[追剧数据 模板 | 豆瓣高分 (notion.site)](https://songshua.notion.site/0c41663e10ff4a5da604753fa16453f4?v=510d034c4fe64feaa85472a13b5735fc)
+    2. notion阅读模板：[阅读书单 模板 | Show All (notion.site)](https://songshua.notion.site/0f2c41c4a52f41e3a68e670fae62a296?v=4f436f06816a43d5be073411aa77f4c0)
 
-        # 提取单集片长
-        single_runtime_tag = soup.find('span', string='单集片长:')
-        single_runtime = single_runtime_tag.find_next_sibling('span').text.strip() if single_runtime_tag and single_runtime_tag.find_next_sibling('span') else 'Unknown'
+‍
 
-        # 写入 CSV 文件
-        writer.writerow({
-            '标题': title,
-            '评分': rating_value,
-            '评分人数': rating_count,
-            '导演': director,
-            '主演': ', '.join(casts) if isinstance(casts, list) else casts,
-            '类型': ', '.join(genres) if isinstance(genres, list) else genres,
-            '上映日期': release_date,
-            '片长': runtime,
-            '剧情简介': summary,
-            '海报图片': poster_url,
-            '制片国家/地区': countries,
-            '语言': language,
-            '又名': alias_value,
-            'IMDb': imdb_value,
-            '豆瓣url': url,
-            '集数': episodes_value,
-            '单集片长': single_runtime
-        })
+---
 
-        print(f"电影《{title}》信息已成功写入到 data.csv 文件中。")
+# Notion中的字段修改（可不选）
+
+**推荐使用我的模板，进行导入。**
+
+如果你没有使用我的模板进行导入，推荐在导入csv到 notion 中后 添加如下字段。
+
+视图「view」方面，可以自行进行定义，常见的有：在看、想看、已看等
+
+## 影视库Notion字段更改
+
+「海报图片」：类型修改为`Files & media`​，会自动变为图片；
+
+「导演」、「主演」、「标签」、「类型」：类型修改为`Multi-select`​，会自动变为多选标签
+
+## 书籍库Notion字段更改
+
+「封面」：类型修改为`Files & media`​，会自动变为图片；
+
+「状态」：添加该字段，类型为`status`​，值为 已读、在读、想读、归档；
+
+「类别」：添加该字段，由于豆瓣采集中没有该字段，所以无法获取，只能自己进行打标签。常见标签如小说、传记、悬疑等，更多可参考：[豆瓣图书标签 (douban.com)](https://book.douban.com/tag/)；
+
+「日期」：主要记录开始时间与完成时间；
+
+「评分」：自己的评分，数字或者星⭐表示都可以
+
+更多可选字段：
+
+「进度」：记录当前的已读页数表示进度。
+
+‍
